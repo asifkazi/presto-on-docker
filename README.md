@@ -1,29 +1,24 @@
 # docker-presto
 
-[![Travis Build Status](https://travis-ci.com/simplifi/docker-presto.svg?branch=master)](https://travis-ci.com/simplifi/docker-presto)
-[![Docker Hub](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com/r/simplifi/docker-presto/)
-[![Docker Pulls](https://img.shields.io/docker/pulls/simplifi/docker-presto.svg)](https://hub.docker.com/r/simplifi/docker-presto/)
-[![Docker Stars](https://img.shields.io/docker/stars/simplifi/docker-presto.svg)](https://hub.docker.com/r/simplifi/docker-presto/)
-
-This repository contains a **Dockerfile** of [Presto](https://prestosql.io/).
+This repository contains a **Dockerfile** of [Presto]
 
 ## Installation
 
 Pull the image from the Docker repository.
 ```
-docker pull simplifi/docker-presto:latest
+docker pull asifkazi/docker-presto:latest
 ```
 
 ## Build
 ```
-docker build --rm -t simplifi/docker-presto:latest .
+docker build --rm -t asifkazi/docker-presto:latest .
 ```
 
 ## Usage
 
 ### To start a single node Presto cluster
 ```
-docker run -p 8080:8080 simplifi/docker-presto:latest
+docker run -p 8080:8080 asifkazi/docker-presto:latest
 ```
 
 
@@ -83,7 +78,7 @@ Configuration is handled by setting the environment variables outlined below.
 
 Example:
 ```
-docker run -e PRESTO_CATALOG_HIVE=true -it simplifi/docker-presto
+docker run -e PRESTO_CATALOG_HIVE=true -it asifkazi/docker-presto
 ```
 
 
