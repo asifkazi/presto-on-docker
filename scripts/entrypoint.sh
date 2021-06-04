@@ -5,6 +5,16 @@ set -e
 #############################
 # Default Values
 #############################
+: "${PRESTO_JVM_MEMORY_MS_MX:=8G}"
+: "${PRESTO_JVM_SETTINGS:=-server \
+-Xmx${PRESTO_JVM_MEMORY_MS_MX} \
+-XX:-UseBiasedLocking \
+-XX:+UseG1GC \
+-XX:+ExplicitGCInvokesConcurrent \
+-XX:+HeapDumpOnOutOfMemoryError \
+-XX:+UseGCOverheadLimit \
+-XX:+ExitOnOutOfMemoryError \
+-XX:ReservedCodeCacheSize=512M}"
 
 # node
 : "${PRESTO_NODE_ENVIRONMENT:=docker}"
@@ -23,7 +33,10 @@ set -e
 # catalogs
 # jmx
 : "${PRESTO_CATALOG_JMX:=true}"
-: "${PRESTO_CATALOG_JMX_NAME:=jmx}"
+: "${PRESTO_CATALOG_TPCDS:=true}"
+: "${PRESTO_CATALOG_TPCH:=true}"
+: "${PRESTO_CATALOG_BLACKHOLE:=true}"
+
 
 # hive
 : "${PRESTO_CATALOG_HIVE:=false}"
@@ -39,9 +52,41 @@ set -e
 : "${PRESTO_CATALOG_HIVE_S3_SELECT_PUSHDOWN_ENABLED:=true}"
 
 
+# mysql
+: "${PRESTO_CATALOG_MYSQL:=true}"
+: "${PRESTO_CATALOG_MYSQL_NAME:=mysql}"
+: "${PRESTO_CATALOG_MYSQL_HOST:=mysql}"
+: "${PRESTO_CATALOG_MYSQL_PORT:=3306}"
+: "${PRESTO_CATALOG_MYSQL_USER:=dbuser}"
+: "${PRESTO_CATALOG_MYSQL_PASSWORD:=dbuser}"
+
+#############################
+# jvm.config
+#############################
+presto_jvm_config() {
+    for i in ${PRESTO_JVM_SETTINGS}
+        do
+            prnt="$prnt\n$i"       # New line directly 
+        done
+    echo -e "${prnt:1}"  # Trim the leading newline
+            
+} > /etc/presto/jvm.config
+
+#############################
+# log.properties
+#############################
+presto_log_config() {
+    echo "com.facebook.presto=INFO"  
+    echo "com.sun.jersey.guice.spi.container.GuiceComponentProviderFactory=WARN"
+    echo "com.ning.http.client=WARN"
+    echo "com.facebook.presto.server.PluginManager=DEBUG"            
+} > /etc/presto/log.properties
+
+
 #############################
 # node.properties
 #############################
+presto_node_config()
 {
     echo "node.environment=${PRESTO_NODE_ENVIRONMENT}"
     echo "node.id=${PRESTO_NODE_ID}"
@@ -53,6 +98,7 @@ set -e
 #############################
 # config.properties
 #############################
+presto_settings_config()
 {
     echo "coordinator=${PRESTO_CONF_COORDINATOR}"
     echo "http-server.http.port=${PRESTO_CONF_HTTP_PORT}"
@@ -69,45 +115,116 @@ set -e
 
 } > /etc/presto/config.properties
 
+#############################
+# catalog jmx
+#############################
+catalog_jmx_config()
+{
+    echo "connector.name=jmx"
+} > "/etc/presto/catalog/jmx.properties"
+
 
 #############################
-# catalogs
+# catalog tpcds
 #############################
+catalog_tpcds_config()
+{
+    echo "connector.name=tpcds"
+} > "/etc/presto/catalog/tpcds.properties"
+
+#############################
+# catalog tpch
+#############################
+catalog_tpch_config()
+{
+    echo "connector.name=jmx"
+} > "/etc/presto/catalog/tpch.properties"
+
+#############################
+# catalog blackhole
+#############################
+catalog_blackhole_config()
+{
+    echo "connector.name=blackhole"
+} > "/etc/presto/catalog/blackhole.properties"
+
+
+#############################
+# catalog hive
+#############################
+catalog_hive_config()
+{
+    echo "connector.name=hive-hadoop2"
+    echo "hive.recursive-directories=${PRESTO_CATALOG_HIVE_RECURSIVE_DIRECTORIES}"
+    echo "hive.allow-drop-table=${PRESTO_CATALOG_HIVE_ALLOW_DROP_TABLE}"
+
+    # use a real metastore, or a file-based metastore
+    if [ $PRESTO_CATALOG_HIVE_METASTORE_URI == "file" ]; then
+        echo "hive.metastore=file"
+        echo "hive.metastore.catalog.dir=file:///tmp/hive_catalog"
+        echo "hive.metastore.user=presto"
+    else
+        echo "hive.metastore.uri=${PRESTO_CATALOG_HIVE_METASTORE_URI}"
+    fi
+
+    # s3 on hive    
+    if [ $PRESTO_CATALOG_HIVE_USE_S3 == "true" ]; then
+        echo "hive.s3.aws-access-key=${PRESTO_CATALOG_HIVE_S3_AWS_ACCESS_KEY}"
+        echo "hive.s3.aws-secret-key=${PRESTO_CATALOG_HIVE_S3_AWS_SECRET_KEY}"
+        echo "hive.s3.endpoint=${PRESTO_CATALOG_HIVE_S3_ENDPOINT}"
+        echo "hive.s3.use-instance-credentials=${PRESTO_CATALOG_HIVE_S3_USE_INSTANCE_CREDENTIALS}"
+        echo "hive.s3select-pushdown.enabled=${PRESTO_CATALOG_HIVE_S3_SELECT_PUSHDOWN_ENABLED}"
+    fi
+} > "/etc/presto/catalog/${PRESTO_CATALOG_HIVE_NAME}.properties"
+
+#############################
+# catalog mysql
+#############################
+catalog_mysql_config() {
+  (
+    echo "connector.name=mysql"
+    echo "connection-url=jdbc:mysql://${PRESTO_CATALOG_MYSQL_HOST}:${PRESTO_CATALOG_MYSQL_PORT}?useSSL=false"
+    echo "connection-user=${PRESTO_CATALOG_MYSQL_USER}"
+    echo "connection-password=${PRESTO_CATALOG_MYSQL_PASSWORD}"
+  ) >/etc/presto/catalog/${PRESTO_CATALOG_MYSQL_NAME}.properties
+}
+
+#############################
+# Let er rip
+#############################
+presto_jvm_config
+presto_settings_config
+presto_node_config
 
 # jmx
 if [ $PRESTO_CATALOG_JMX == "true" ]; then
-    {
-        echo "connector.name=jmx"
-    } > "/etc/presto/catalog/${PRESTO_CATALOG_JMX_NAME}.properties"
+    catalog_jmx_config
+fi
+
+# tpcds
+if [ $PRESTO_CATALOG_TPCDS == "true" ]; then
+    catalog_tpcds_config
+fi
+
+# tpch
+if [ $PRESTO_CATALOG_TPCH == "true" ]; then
+    catalog_tpch_config
+fi
+
+# blackhole
+if [ $PRESTO_CATALOG_BLACKHOLE == "true" ]; then
+    catalog_blackhole_config
 fi
 
 # hive
 if [ $PRESTO_CATALOG_HIVE == "true" ]; then
-    {
-        echo "connector.name=hive-hadoop2"
-        echo "hive.recursive-directories=${PRESTO_CATALOG_HIVE_RECURSIVE_DIRECTORIES}"
-        echo "hive.allow-drop-table=${PRESTO_CATALOG_HIVE_ALLOW_DROP_TABLE}"
-
-        # use a real metastore, or a file-based metastore
-        if [ $PRESTO_CATALOG_HIVE_METASTORE_URI == "file" ]; then
-            echo "hive.metastore=file"
-            echo "hive.metastore.catalog.dir=file:///tmp/hive_catalog"
-            echo "hive.metastore.user=presto"
-        else
-            echo "hive.metastore.uri=${PRESTO_CATALOG_HIVE_METASTORE_URI}"
-        fi
-
-        # s3 on hive    
-        if [ $PRESTO_CATALOG_HIVE_USE_S3 == "true" ]; then
-            echo "hive.s3.aws-access-key=${PRESTO_CATALOG_HIVE_S3_AWS_ACCESS_KEY}"
-            echo "hive.s3.aws-secret-key=${PRESTO_CATALOG_HIVE_S3_AWS_SECRET_KEY}"
-            echo "hive.s3.endpoint=${PRESTO_CATALOG_HIVE_S3_ENDPOINT}"
-            echo "hive.s3.use-instance-credentials=${PRESTO_CATALOG_HIVE_S3_USE_INSTANCE_CREDENTIALS}"
-            echo "hive.s3select-pushdown.enabled=${PRESTO_CATALOG_HIVE_S3_SELECT_PUSHDOWN_ENABLED}"
-        fi
-    } > "/etc/presto/catalog/${PRESTO_CATALOG_HIVE_NAME}.properties"
+    catalog_hive_config
 fi
 
+# hive
+if [ $PRESTO_CATALOG_MYSQL == "true" ]; then
+    catalog_mysql_config
+fi
 
 #############################
 # execute
