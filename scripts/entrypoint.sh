@@ -41,10 +41,8 @@ set -e
 # hive
 : "${PRESTO_CATALOG_HIVE:=true}"
 : "${PRESTO_CATALOG_HIVE_NAME:=hive}"
-: "${PRESTO_CATALOG_HIVE_METASTORE_URI:=glue}" #Options are file,glue or a specific thrift endpoint
-: "${PRESTO_CATALOG_HIVE_METASTORE_GLUE_REGION:=us-east-1}" 
-: "${PRESTO_CATALOG_HIVE_METASTORE_GLUE_IAM_ROLE:=}"  
-      
+
+
 # hive-s3
 : "${PRESTO_CATALOG_HIVE_USE_S3:=true}"
 : "${PRESTO_CATALOG_HIVE_S3_AWS_ACCESS_KEY:=}"
@@ -53,6 +51,14 @@ set -e
 : "${PRESTO_CATALOG_HIVE_S3_IAM_ROLE:=}"
 : "${PRESTO_CATALOG_HIVE_S3_USE_INSTANCE_CREDENTIALS:=false}"
 : "${PRESTO_CATALOG_HIVE_S3_SELECT_PUSHDOWN_ENABLED:=true}"
+
+
+# hive glue
+: "${PRESTO_CATALOG_HIVE_METASTORE_URI:=glue}" #Options are file,glue or a specific thrift endpoint
+: "${PRESTO_CATALOG_HIVE_METASTORE_GLUE_REGION:=us-east-1}" 
+: "${PRESTO_CATALOG_HIVE_METASTORE_GLUE_IAM_ROLE:=}"  
+: "${PRESTO_CATALOG_HIVE_GLUE_AWS_ACCESS_KEY:=}"
+: "${PRESTO_CATALOG_HIVE_GLUE_AWS_SECRET_KEY:=}"
 
 
 # mysql
@@ -178,8 +184,11 @@ catalog_hive_config()
         echo "hive.metastore.user=presto"
     elif [ $PRESTO_CATALOG_HIVE_METASTORE_URI == "glue" ]; then
         echo "hive.metastore=glue"
+        echo "hive.metastore.glue.aws-access-key=${PRESTO_CATALOG_HIVE_GLUE_AWS_ACCESS_KEY}"
+        echo "hive.metastore.glue.aws-secret-key=${PRESTO_CATALOG_HIVE_GLUE_AWS_SECRET_KEY}"
         echo "hive.metastore.glue.region=${PRESTO_CATALOG_HIVE_METASTORE_GLUE_REGION}"
         echo "hive.metastore.glue.iam-role=${PRESTO_CATALOG_HIVE_METASTORE_GLUE_IAM_ROLE}"
+  
     else
         echo "hive.metastore.uri=${PRESTO_CATALOG_HIVE_METASTORE_URI}"
     fi
@@ -212,6 +221,7 @@ catalog_mysql_config()
 # Seems to be a bug
 # Doesn't look like the glue portion of the connector is bootstrapping
 # from the connector config. S3 Access alone works, but not with glue
+# 06/26: Seems to be fixed in .255 so no longer an issue
 #############################
 aws_sdk_credentials_config() 
 {
@@ -254,9 +264,11 @@ fi
 if [ $PRESTO_CATALOG_HIVE == "true" ]; then
     catalog_hive_config
 
-    #workaround for now
-    mkdir -p /root/.aws/
-    aws_sdk_credentials_config
+    # Workaround for now
+    # Use glue specific keys
+    # 06/26 Yaay! looks like someone fixed it
+    # mkdir -p /root/.aws/
+    # aws_sdk_credentials_config
 fi
 
 # hive
