@@ -43,7 +43,7 @@ set -e
 : "${PRESTO_CATALOG_HIVE_NAME:=hive}"
 : "${PRESTO_CATALOG_HIVE_METASTORE_URI:=glue}" #Options are file,glue or a specific thrift endpoint
 : "${PRESTO_CATALOG_HIVE_METASTORE_GLUE_REGION:=us-east-1}" 
-: "${PRESTO_CATALOG_HIVE_METASTORE_GLUE_IAM_ROLE:=arn:aws:iam:::role/GlueAndS3Access}"  
+: "${PRESTO_CATALOG_HIVE_METASTORE_GLUE_IAM_ROLE:=}"  
       
 # hive-s3
 : "${PRESTO_CATALOG_HIVE_USE_S3:=true}"
@@ -199,14 +199,24 @@ catalog_hive_config()
 #############################
 # catalog mysql
 #############################
-catalog_mysql_config() {
-  (
+catalog_mysql_config() 
+{
     echo "connector.name=mysql"
     echo "connection-url=jdbc:mysql://${PRESTO_CATALOG_MYSQL_HOST}:${PRESTO_CATALOG_MYSQL_PORT}?useSSL=false"
     echo "connection-user=${PRESTO_CATALOG_MYSQL_USER}"
     echo "connection-password=${PRESTO_CATALOG_MYSQL_PASSWORD}"
-  ) >/etc/presto/catalog/${PRESTO_CATALOG_MYSQL_NAME}.properties
-}
+} >/etc/presto/catalog/${PRESTO_CATALOG_MYSQL_NAME}.properties
+
+#############################
+# Work around for now for AWS SDK (Currently hive config not working)
+#############################
+aws_sdk_credentials_config() 
+{
+        echo "[default]"
+        echo "aws_access_key_id=${PRESTO_CATALOG_HIVE_S3_AWS_ACCESS_KEY}"
+        echo "aws_secret_access_key=${PRESTO_CATALOG_HIVE_S3_AWS_SECRET_KEY}"
+    
+} > /root/.aws/credentials
 
 #############################
 # Let er rip
@@ -215,6 +225,7 @@ presto_log_config
 presto_jvm_config
 presto_settings_config
 presto_node_config
+
 
 # jmx
 if [ $PRESTO_CATALOG_JMX == "true" ]; then
@@ -239,6 +250,10 @@ fi
 # hive
 if [ $PRESTO_CATALOG_HIVE == "true" ]; then
     catalog_hive_config
+
+    #workaround for now
+    mkdir -p /root/.aws/
+    aws_sdk_credentials_config
 fi
 
 # hive
