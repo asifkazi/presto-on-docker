@@ -208,7 +208,10 @@ catalog_mysql_config()
 } >/etc/presto/catalog/${PRESTO_CATALOG_MYSQL_NAME}.properties
 
 #############################
-# Work around for now for AWS SDK (Currently hive config not working)
+# Work around for now for AWS SDK (Currently hive config with glue is not working without this)
+# Seems to be a bug
+# Doesn't look like the glue portion of the connector is bootstrapping
+# from the connector config. S3 Access alone works, but not with glue
 #############################
 aws_sdk_credentials_config() 
 {
