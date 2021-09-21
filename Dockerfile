@@ -4,7 +4,7 @@ LABEL Maintainer="Asif Kazi<asif.kazi@gmail.com>"
 LABEL Description="Presto Server"
 LABEL Version="0.0.5"
 
-ARG PRESTO_VERSION=0.254
+ARG PRESTO_VERSION=0.260
 ARG PRESTO_BASE_URL=https://repo1.maven.org/maven2/com/facebook/presto/presto-server-rpm
 ARG PRESTO_CLI_BASE_URL=https://repo1.maven.org/maven2/com/facebook/presto/presto-cli
 ARG PRESTO_CLI_BIN="${PRESTO_CLI_BASE_URL}/${PRESTO_VERSION}/presto-cli-${PRESTO_VERSION}-executable.jar"
