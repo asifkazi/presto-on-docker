@@ -146,7 +146,7 @@ catalog_tpcds_config()
 #############################
 catalog_tpch_config()
 {
-    echo "connector.name=jmx"
+    echo "connector.name=tpch"
 } > "/etc/presto/catalog/tpch.properties"
 
 #############################
